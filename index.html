@@ -1,0 +1,292 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Maxence & Léane — Notre petit univers</title>
+<style>
+:root{
+--bg:#f5f1e8;--paper:#fffdf7;--green:#718b75;
+--ink:#514e45;--muted:#928c7f;--line:#e8e1d4;
+--pink:#eac9d1;--lavender:#e9e3f1;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Georgia,serif}
+header{text-align:center;padding:30px 15px 18px}
+header h1{font-size:31px;color:var(--green);margin:10px}
+header p{font-size:11px;letter-spacing:3px;color:var(--muted)}
+nav{display:flex;overflow-x:auto;gap:7px;padding:12px;position:sticky;top:0;background:var(--bg);z-index:3}
+button{cursor:pointer;font-family:inherit}
+nav button,.btn{border:1px solid var(--line);background:var(--paper);border-radius:20px;padding:10px 14px;color:var(--ink);white-space:nowrap}
+nav button.active,.primary{background:var(--green)!important;color:white!important}
+main{max-width:850px;margin:auto;padding:15px}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:17px;padding:20px;margin-bottom:16px}
+h2{color:var(--green);font-weight:normal}
+h3{font-weight:normal}
+small,.muted{color:var(--muted)}
+input,textarea,select{width:100%;padding:11px;border:1px solid var(--line);border-radius:9px;background:#fffefa;color:var(--ink);margin:6px 0 13px}
+textarea{min-height:110px;resize:vertical}
+label{font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.day{aspect-ratio:1;border:1px solid var(--line);border-radius:7px;background:#fffefa;color:var(--ink)}
+.day.selected{outline:2px solid var(--green)}
+.palette{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
+.swatch{width:32px;height:32px;border-radius:50%;border:2px solid white;box-shadow:0 0 0 1px #ccc}
+.entry{padding:13px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+.row{display:flex;gap:10px;align-items:center}
+.row>*{flex:1;min-width:0}
+.letter{background:#fffaf0;padding:22px;border:1px solid #e7ddc9;border-radius:4px}
+.secret{background:#f3eaf0;border:1px dashed #d7b5c5;border-radius:14px;padding:18px;text-align:center}
+footer{text-align:center;padding:35px;color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+<header>
+<div style="font-size:34px">🌿 ☾ ✨</div>
+<h1>Maxence & Léane</h1>
+<p>NOTRE PETIT UNIVERS</p>
+<small>Deux cœurs, un carnet, mille souvenirs ♡</small>
+</header>
+<nav id="nav"></nav>
+<main id="app"></main>
+<footer>Créé avec amour pour Maxence & Léane ♡</footer>
+
+<script>
+const sections=[
+["home","🏡 Accueil"],["sleep","🌙 Sommeil"],
+["dreams","✨ Rêves"],["stress","🧠 Stress"],
+["mood","❤️ Humeur"],["energy","🌱 Énergie"],
+["habits","💧 Habitudes"],["memories","📸 Souvenirs"],
+["together","💌 Ensemble"],["secret","🔐 Petits mystères"],
+["letter","✉️ Lettre ouverte"],["stats","📊 Bilans"]
+];
+
+const people=["Maxence","Léane"];
+const colors={
+sleep:["#a8c9e0","#78a9c9","#9bc5a3","#f0d77e","#e9a477"],
+stress:["#78a985","#b5d3a1","#f0d77e","#e9a477","#d77c78"],
+mood:["#f1d66d","#9bc5a3","#a8c9e0","#b9a7d6","#e9a477","#d77c78","#d9d5cc"],
+dreams:["#f1d66d","#a8c9e0","#b9a7d6","#d77c78","#9bc5a3"]
+};
+const labels={
+sleep:["Plus de 10 h","8–10 h","6–8 h","4–6 h","Moins de 4 h"],
+stress:["Aucun","Léger","Modéré","Élevé","Très élevé"],
+mood:["Heureux","Bien","Calme","Mélancolique","Fatigué","Irrité","Neutre"],
+dreams:["Agréable","Neutre","Étrange","Cauchemar","Lucide"]
+};
+
+let data=JSON.parse(localStorage.getItem("univers")||"{}");
+let current="home";
+let person="Maxence";
+let selectedDay=new Date().getDate();
+let month=new Date().getMonth();
+let year=new Date().getFullYear();
+
+function save(){
+localStorage.setItem("univers",JSON.stringify(data));
+}
+function safe(s){
+return String(s||"").replace(/[&<>"']/g,c=>({
+"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+}[c]));
+}
+function dateKey(){
+return `${year}-${String(month+1).padStart(2,"0")}-${String(selectedDay).padStart(2,"0")}`;
+}
+function recordKey(p,d=dateKey()){
+return p+"_"+d;
+}
+function nav(){
+document.getElementById("nav").innerHTML=sections.map(s=>
+`<button class="${current===s[0]?'active':''}" onclick="go('${s[0]}')">${s[1]}</button>`
+).join("");
+}
+function go(id){current=id;render()}
+function setPerson(p){person=p;render()}
+function period(){
+return `<div class="row">
+<div><label>Mois</label><select onchange="month=Number(this.value);render()">
+${Array.from({length:12},(_,i)=>`<option value="${i}" ${month===i?"selected":""}>${new Date(2000,i,1).toLocaleString("fr-FR",{month:"long"})}</option>`).join("")}
+</select></div>
+<div><label>Année</label><select onchange="year=Number(this.value);render()">
+${Array.from({length:16},(_,i)=>2025+i).map(y=>`<option ${year===y?"selected":""}>${y}</option>`).join("")}
+</select></div></div>`;
+}
+function setColor(section,color){
+data[recordKey(person)]??={};
+data[recordKey(person)][section]=color;
+save();render();
+}
+function render(){
+nav();
+const app=document.getElementById("app");
+
+if(current==="home"){
+app.innerHTML=`
+<section class="card" style="text-align:center">
+<div style="font-size:42px">🌿</div>
+<h2>Bienvenue dans votre univers</h2>
+<p>Un petit endroit rien qu'à vous deux.</p>
+<div class="row">
+<button class="btn" onclick="setPerson('Maxence')">🤎 Maxence</button>
+<button class="btn" onclick="setPerson('Léane')">🌸 Léane</button>
+</div>
+<p class="muted">Profil actuel : ${person}</p>
+</section>
+<section class="card">
+<h2>Notre carnet</h2>
+${sections.slice(1).map(s=>`<div class="entry" onclick="go('${s[0]}')" style="cursor:pointer">${s[1]}　→</div>`).join("")}
+</section>
+<section class="card">
+<h2>💌 Un petit mot t'attend ?</h2>
+<div id="homeSecret"></div>
+</section>`;
+showHomeSecret();
+}
+else if(["sleep","stress","mood","dreams"].includes(current)){
+let count=new Date(year,month+1,0).getDate();
+let selected=dateKey();
+let palette=colors[current],opts=labels[current];
+let rec=data[recordKey(person,selected)]||{};
+app.innerHTML=`
+<section class="card">
+<h2>${sections.find(s=>s[0]===current)[1]}</h2>
+<p class="muted">Suivi personnel · ${person}</p>
+${period()}
+<div class="grid">
+${Array.from({length:count},(_,i)=>{
+let d=i+1;
+let k=recordKey(person,`${year}-${String(month+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`);
+let val=data[k]?.[current];
+return `<button class="day ${selectedDay===d?'selected':''}" style="${val?'background:'+val:''}" onclick="selectedDay=${d};render()">${d}</button>`;
+}).join("")}
+</div>
+<h3>${selectedDay} ${new Date(year,month,1).toLocaleString("fr-FR",{month:"long"})} ${year}</h3>
+<div class="palette">${palette.map(c=>`<button class="swatch" style="background:${c}" onclick="setColor('${current}','${c}')"></button>`).join("")}</div>
+${opts.map((o,i)=>`<div class="entry">${o} <span style="display:inline-block;background:${palette[i]};width:15px;height:15px;border-radius:50%;float:right"></span></div>`).join("")}
+<label>Ma petite note</label>
+<textarea id="note">${safe(rec[current+"note"])}</textarea>
+<button class="btn primary" onclick="data[recordKey(person)]??={};data[recordKey(person)]['${current}note']=document.getElementById('note').value;save();alert('Enregistré ♡')">Enregistrer</button>
+</section>`;
+}
+else if(current==="secret"){
+app.innerHTML=`
+<section class="card">
+<h2>🔐 Nos petits mystères</h2>
+<p>Des mots déposés en secret, à découvrir quand on ne s'y attend pas.</p>
+<label>À qui veux-tu écrire ?</label>
+<select id="recipient">
+${people.filter(p=>p!==person).map(p=>`<option>${p}</option>`).join("")}
+</select>
+<label>Ton petit message</label>
+<textarea id="secretMessage" placeholder="Un mot doux, une surprise, une pensée..."></textarea>
+<button class="btn primary" onclick="sendSecret()">Déposer mon message ♡</button>
+</section>
+<section class="card">
+<h2>🎁 Une surprise pour toi</h2>
+<div id="secretList"></div>
+</section>`;
+showSecrets();
+}
+else if(current==="letter"){
+app.innerHTML=`
+<section class="card">
+<h2>✉️ Notre lettre ouverte</h2>
+<p>Il y a parfois des choses qu'on n'arrive pas à dire à voix haute. Ici, tu peux tout écrire.</p>
+<label>Destinataire</label>
+<select id="letterTo">
+<option>Maxence & Léane</option>
+<option>Maxence</option><option>Léane</option>
+</select>
+<label>Objet de la lettre</label>
+<input id="letterTitle" placeholder="Quelques mots pour toi...">
+<label>Ma lettre</label>
+<textarea id="letterText" style="min-height:230px" placeholder="Je voulais te dire..."></textarea>
+<button class="btn primary" onclick="saveLetter()">Enregistrer ma lettre ♡</button>
+</section>
+<section class="card">
+<h2>📜 Nos lettres</h2>
+<div id="letters"></div>
+</section>`;
+showLetters();
+}
+else{
+let titles={
+energy:"🌱 Mon énergie",habits:"💧 Mes habitudes",
+memories:"📸 Nos souvenirs",together:"💌 Notre espace commun",
+stats:"📊 Nos bilans"
+};
+app.innerHTML=`
+<section class="card">
+<h2>${titles[current]}</h2>
+${period()}
+<label>Date</label><input type="date" id="entryDate" value="${dateKey()}">
+<label>Titre</label><input id="entryTitle" placeholder="Un petit titre...">
+<label>Ton message</label><textarea id="entryMessage" placeholder="Écris ici..."></textarea>
+<button class="btn primary" onclick="addEntry()">Enregistrer ♡</button>
+</section>
+<section class="card"><h2>Notre journal</h2><div id="entries"></div></section>`;
+showEntries();
+}
+}
+function sendSecret(){
+let recipient=document.getElementById("recipient").value;
+let message=document.getElementById("secretMessage").value.trim();
+if(!message)return alert("Écris d'abord ton petit mot ♡");
+data.secrets??=[];
+data.secrets.push({from:person,to:recipient,message,date:new Date().toISOString(),opened:false});
+save();render();alert("Ton petit mystère a été déposé ♡");
+}
+function showSecrets(){
+let list=(data.secrets||[]).filter(x=>x.to===person);
+document.getElementById("secretList").innerHTML=list.length?list.map((x,i)=>{
+let index=data.secrets.indexOf(x);
+return `<div class="secret" style="margin:10px 0">
+<p>✨ Un message mystérieux de ${safe(x.from)}</p>
+${x.opened?`<p>${safe(x.message)}</p>`:`<button class="btn primary" onclick="reveal(${index})">Découvrir mon petit mot ✨</button>`}
+<small>${new Date(x.date).toLocaleDateString("fr-FR")}</small>
+</div>`;
+}).join(""):"Aucun petit mot pour le moment. Peut-être une surprise bientôt... ♡";
+}
+function reveal(i){
+data.secrets[i].opened=true;save();render();
+}
+function showHomeSecret(){
+let pending=(data.secrets||[]).filter(x=>x.to===person&&!x.opened).length;
+document.getElementById("homeSecret").innerHTML=pending?
+`<p>✨ ${pending} petit(s) mystère(s) t'attendent !</p><button class="btn primary" onclick="go('secret')">Découvrir ♡</button>`:
+`<p class="muted">Aucun secret en attente... pour l'instant.</p>`;
+}
+function saveLetter(){
+let title=document.getElementById("letterTitle").value;
+let message=document.getElementById("letterText").value.trim();
+if(!message)return alert("Ta lettre est encore vide ♡");
+data.letters??=[];
+data.letters.unshift({from:person,to:document.getElementById("letterTo").value,title,message,date:new Date().toISOString()});
+save();render();alert("Ta lettre a été conservée ♡");
+}
+function showLetters(){
+document.getElementById("letters").innerHTML=(data.letters||[]).map((x,i)=>
+`<div class="letter" style="margin:12px 0">
+<small>De ${safe(x.from)} · ${new Date(x.date).toLocaleDateString("fr-FR")}</small>
+<h3>${safe(x.title)}</h3>
+<p>${safe(x.message).replace(/\n/g,"<br>")}</p>
+</div>`).join("")||"Votre boîte à lettres est encore vide.";
+}
+function addEntry(){
+let title=document.getElementById("entryTitle").value;
+let message=document.getElementById("entryMessage").value;
+data.entries??=[];
+data.entries.unshift({section:current,person,date:document.getElementById("entryDate").value,title,message});
+save();render();
+}
+function showEntries(){
+document.getElementById("entries").innerHTML=(data.entries||[])
+.filter(x=>x.section===current&&x.date?.startsWith(`${year}-${String(month+1).padStart(2,"0")}`))
+.map(x=>`<div class="entry"><small>${safe(x.date)} · ${safe(x.person)}</small><h3>${safe(x.title)}</h3><p>${safe(x.message)}</p></div>`).join("")||"Aucune entrée pour ce mois.";
+}
+render();
+</script>
+</body>
+</html>
